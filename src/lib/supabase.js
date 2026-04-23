@@ -1,41 +1,112 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Cliente SIN schema fijo — el schema se especifica en cada query
-export const supabase = createClient(supabaseUrl, supabaseKey)
-
-export function formatMoney(amount) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 0,
-  }).format(amount ?? 0)
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Faltan variables de entorno de Supabase. Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel/local.'
+  );
 }
 
-export function formatDate(dateStr) {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
+// IMPORTANTE: NO configurar db.schema acá.
+// Auth usa el esquema por defecto y agregar schema global puede romper login/register.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// --------------------
+// Helpers de Auth
+// --------------------
+export async function signIn(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) throw error;
+  return data;
 }
 
-export function calcSubtotal(product, quantity, promos) {
-  const applicablePromos = promos
-    .filter(p => p.product_id === product.id && p.active && quantity >= p.min_qty)
-    .sort((a, b) => b.min_qty - a.min_qty)
+export async function signUp(email, password) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-  if (applicablePromos.length === 0) {
-    return { subtotal: product.price * quantity, promoApplied: false }
-  }
-
-  const bestPromo = applicablePromos[0]
-  const packs     = Math.floor(quantity / bestPromo.min_qty)
-  const remainder = quantity % bestPromo.min_qty
-  const subtotal  = packs * bestPromo.promo_price + remainder * product.price
-  return { subtotal, promoApplied: true }
+  if (error) throw error;
+  return data;
 }
 
-export async function logAudit({ action, tableName, recordId, oldData, newData, description }) {
-  const { da
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export async function getCurrentUser() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) throw error;
+  return user;
+}
+
+export async function getCurrentSession() {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error) throw error;
+  return session;
+}
+
+// --------------------
+// Operaciones en panaderia.users (RLS)
+// --------------------
+
+/**
+ * Busca el perfil del usuario en panaderia.users por auth_id (uuid del usuario auth).
+ */
+export async function getPanaderiaUserByAuthId(authUserId) {
+  const { data, error } = await supabase
+    .schema('panaderia')
+    .from('users')
+    .select('*')
+    .eq('id', authUserId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Crea/actualiza perfil en panaderia.users (si tus políticas RLS lo permiten).
+ */
+export async function upsertPanaderiaUser(userPayload) {
+  const { data, error } = await supabase
+    .schema('panaderia')
+    .from('users')
+    .upsert(userPayload)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Actualiza campos de panaderia.users por id (uuid).
+ */
+export async function updatePanaderiaUser(userId, updates) {
+  const { data, error } = await supabase
+    .schema('panaderia')
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
