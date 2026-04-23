@@ -1,0 +1,53 @@
+/* src/index.css */
+/* Reset y estilos base */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scroll suave */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Inputs: quitar outline feo del sistema */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #c8860a !important;
+  box-shadow: 0 0 0 3px rgba(200, 134, 10, 0.15);
+}
+
+/* Botones: sin select azul en mobile */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Números en inputs: quitar flechitas */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Sidebar oculto en mobile */
+@media (max-width: 768px) {
+  aside {
+    display: none !important;
+  }
+  /* Mostrar topbar mobile */
+  div[data-topbar] {
+    display: flex !important;
+  }
+}
